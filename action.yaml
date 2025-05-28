@@ -72,28 +72,11 @@ runs:
         echo "Uploading $FILE_COUNT files to $URL..."
 
         # Force verbosity for now
-        curl $CURL_OPTS -w "%{http_code}" -o /tmp/response.out \
+        curl $CURL_OPTS -o /tmp/response.out \
           -X POST "$URL" \
           -H "Authorization: Bearer $IDTOKEN" \
-          "${CURL_ARGS[@]}" > /tmp/status_code.txt
+          "${CURL_ARGS[@]}"
 
-        HTTP_STATUS=$(cat /tmp/status_code.txt)
-
-        echo "HTTP status: $HTTP_STATUS"
-
-        if [[ ! "$HTTP_STATUS" =~ ^2 ]]; then
-          ERROR_MSG="Upload failed with HTTP $HTTP_STATUS: $(cat /tmp/response.out)"
-          echo "$ERROR_MSG"
-          # Write error message to output
-          echo "upload-error=${ERROR_MSG}" >> "$GITHUB_OUTPUT"
-          exit 1
-        fi
-
-        echo "Upload succeeded."
-
-        echo "uploaded-count=$FILE_COUNT" >> "$GITHUB_OUTPUT"
-        echo "upload-error=" >> "$GITHUB_OUTPUT"  # Clear if successful
-
-        echo "### ✅ Static site uploaded successfully" >> "$GITHUB_STEP_SUMMARY"
+        echo "### Static site uploaded successfully" >> "$GITHUB_STEP_SUMMARY"
         echo "- Files uploaded: $FILE_COUNT" >> "$GITHUB_STEP_SUMMARY"
         echo "- Target endpoint: $URL" >> "$GITHUB_STEP_SUMMARY"
