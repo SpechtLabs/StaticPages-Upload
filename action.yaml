@@ -72,7 +72,7 @@ runs:
         echo "Uploading $FILE_COUNT files to $URL..."
 
         # Force verbosity for now
-        curl $CURL_OPTS -o /tmp/response.out \
+        curl $CURL_OPTS \
           -X POST "$URL" \
           -H "Authorization: Bearer $IDTOKEN" \
           "${CURL_ARGS[@]}"
