@@ -40,6 +40,6 @@ jobs:
 
       - uses: SpechtLabs/StaticPages-Upload@main
         with:
-          apiUrl: https://staticpages.cedi.dev
+          apiUrl: https://staticpages.cedi.dev/upload
           dir: public/
 ```

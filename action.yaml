@@ -43,6 +43,6 @@ runs:
         echo "Uploading ${#CURL_ARGS[@]} files..."
 
         # Upload to your REST API
-        curl -v -X POST https://staticpages.cedi.dev/upload \
+        curl -v -X POST ${{ inputs.dir }} \
           -H "Authorization: Bearer $IDTOKEN" \
           "${CURL_ARGS[@]}"
