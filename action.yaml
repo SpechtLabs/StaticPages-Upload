@@ -71,10 +71,13 @@ runs:
 
         echo "Uploading $FILE_COUNT files to $URL..."
 
-        HTTP_STATUS=$(curl $CURL_OPTS -w "%{http_code}" -o /tmp/response.out \
+        # Force verbosity for now
+        curl $CURL_OPTS -w "%{http_code}" -o /tmp/response.out \
           -X POST "$URL" \
           -H "Authorization: Bearer $IDTOKEN" \
-          "${CURL_ARGS[@]}")
+          "${CURL_ARGS[@]}" > /tmp/status_code.txt
+
+        HTTP_STATUS=$(cat /tmp/status_code.txt)
 
         echo "HTTP status: $HTTP_STATUS"
 
