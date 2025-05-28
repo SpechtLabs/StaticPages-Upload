@@ -18,6 +18,22 @@ runs:
       with:
         debug: false
         script: |
+          let url = '${{ inputs.apiUrl }}';
+
+          // Ensure it has a protocol
+          if (!url.match(/^https?:\/\//)) {
+            url = 'https://' + url;
+          }
+
+          // Remove trailing slashes
+          url = url.replace(/\/+$/, '');
+
+          // Append /upload if not present
+          if (!url.endsWith('/upload')) {
+            url += '/upload';
+          }
+
+          core.setOutput('uploadApiEndpoint', url);
           core.setOutput('TOKEN', process.env['ACTIONS_RUNTIME_TOKEN'].trim())
           core.setOutput('IDTOKENURL', process.env['ACTIONS_ID_TOKEN_REQUEST_URL'].trim())
 
@@ -43,6 +59,6 @@ runs:
         echo "Uploading ${#CURL_ARGS[@]} files..."
 
         # Upload to your REST API
-        curl -v -X POST ${{ inputs.apiUrl }} \
+        curl -v -X POST "${{ steps.script.outputs.uploadApiEndpoint }}" \
           -H "Authorization: Bearer $IDTOKEN" \
           "${CURL_ARGS[@]}"
