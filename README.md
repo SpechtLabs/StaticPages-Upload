@@ -38,7 +38,7 @@ jobs:
       - name: Build
         run: hugo --minify
 
-      - uses: SpechtLabs/StaticPages-Upload@main
+      - uses: SpechtLabs/StaticPages-Upload@v1
         with:
           apiUrl: https://staticpages.cedi.dev/upload
           dir: public/
