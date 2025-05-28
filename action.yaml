@@ -69,12 +69,25 @@ runs:
         FILE_COUNT="${#CURL_ARGS[@]}"
         echo "Uploading $FILE_COUNT files to $URL..."
 
-        # Force verbosity for now
-        curl $CURL_OPTS \
+        # Upload and capture response
+        HTTP_RESPONSE=$(mktemp)
+        HTTP_CODE=$(curl $CURL_OPTS \
           -X POST "$URL" \
           -H "Authorization: Bearer $IDTOKEN" \
-          "${CURL_ARGS[@]}"
+          "${CURL_ARGS[@]}" \
+          -w "%{http_code}" \
+          -o "$HTTP_RESPONSE")
 
-        echo "### Static site uploaded successfully" >> "$GITHUB_STEP_SUMMARY"
-        echo "- Files uploaded: $FILE_COUNT" >> "$GITHUB_STEP_SUMMARY"
-        echo "- Target endpoint: $URL" >> "$GITHUB_STEP_SUMMARY"
+        echo "Server responded with HTTP $HTTP_CODE"
+        if [[ "$HTTP_CODE" == "200" ]]; then
+          echo "### Static site uploaded successfully" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Files uploaded: $FILE_COUNT" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Target endpoint: $URL" >> "$GITHUB_STEP_SUMMARY"
+          jq . "$HTTP_RESPONSE" || cat "$HTTP_RESPONSE"
+        else
+          echo "### ❌ Upload failed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- HTTP code: $HTTP_CODE" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Error message: $(jq -r '.error // "unknown error"' "$HTTP_RESPONSE" 2>/dev/null || cat "$HTTP_RESPONSE")" >> "$GITHUB_STEP_SUMMARY"
+          cat "$HTTP_RESPONSE" >&2
+          exit 1
+        fi
