@@ -53,22 +53,20 @@ runs:
       id: upload
       shell: bash
       run: |
-        set -euo pipefail
-
         URL="${{ steps.prepare.outputs.uploadApiEndpoint }}"
         IDTOKEN="${{ steps.prepare.outputs.idtoken }}"
         VERBOSE="${{ inputs.verbose }}"
 
         [[ "$VERBOSE" == "true" ]] && CURL_OPTS="-v" || CURL_OPTS="--silent"
 
+        # Build curl arguments for multipart/form-data, preserving relative paths
         CURL_ARGS=()
-        FILE_COUNT=0
         while IFS= read -r -d '' file; do
-          relpath="${file#${{ inputs.site-dir }}}"
+          relpath="${file#${{ inputs.dir }}}"
           CURL_ARGS+=("-F" "files[${relpath}]=@${file}")
-          ((FILE_COUNT++))
-        done < <(find "${{ inputs.site-dir }}" -type f -print0)
+        done < <(find ${{ inputs.dir }} -type f -print0)
 
+        FILE_COUNT="${#CURL_ARGS[@]}"
         echo "Uploading $FILE_COUNT files to $URL..."
 
         # Force verbosity for now
