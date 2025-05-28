@@ -1,25 +1,35 @@
 name: 'StaticPages Upload'
-description: 'Upload static HTML files to your self-hosted Static Pages instance'
+description: 'Upload a static website to your self-hosted Static Pages instance using GitHub OIDC authentication.'
 
 inputs:
-  apiUrl:
-    description: 'The API endpoint of your Static Pages instance'
+  endpoint:
+    description: 'Base URL of your Static Pages API (e.g., staticpages.example.com or https://staticpages.example.com)'
     required: true
 
-  dir:
-    description: 'The directory containing the static files to upload'
+  site-dir:
+    description: 'Path to the directory containing the generated static site to upload'
     required: true
+
+  verbose:
+    description: 'Enable verbose upload output (true/false)'
+    required: false
+    default: 'false'
+
+outputs:
+  uploaded-count:
+    description: 'The number of files uploaded'
+    value: ${{ steps.upload.outputs.uploaded-count }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Prepare API URL and fetch ID token
+    - name: Normalize URL and fetch ID token
       id: prepare
       uses: actions/github-script@v7
       with:
         debug: false
         script: |
-          let url = '${{ inputs.apiUrl }}';
+          let url = '${{ inputs.endpoint }}';
 
           // Ensure it has a protocol
           if (!url.match(/^https?:\/\//)) {
@@ -29,35 +39,39 @@ runs:
           // Remove trailing slashes
           url = url.replace(/\/+$/, '');
 
-          // Append /upload if not present
+          // Append /upload if not already present
           if (!url.endsWith('/upload')) {
             url += '/upload';
           }
 
-          // Get GitHub-issued OIDC token
           const idToken = await core.getIDToken();
 
           core.setOutput('uploadApiEndpoint', url);
           core.setOutput('idtoken', idToken);
 
     - name: Upload static site artifacts
+      id: upload
       shell: bash
       run: |
         set -euo pipefail
 
         URL="${{ steps.prepare.outputs.uploadApiEndpoint }}"
         IDTOKEN="${{ steps.prepare.outputs.idtoken }}"
+        VERBOSE="${{ inputs.verbose }}"
+
+        [[ "$VERBOSE" == "true" ]] && CURL_OPTS="-v" || CURL_OPTS="--silent"
 
         CURL_ARGS=()
+        FILE_COUNT=0
         while IFS= read -r -d '' file; do
-          relpath="${file#${{ inputs.dir }}}"
+          relpath="${file#${{ inputs.site-dir }}}"
           CURL_ARGS+=("-F" "files[${relpath}]=@${file}")
-        done < <(find "${{ inputs.dir }}" -type f -print0)
+          ((FILE_COUNT++))
+        done < <(find "${{ inputs.site-dir }}" -type f -print0)
 
-        echo "Uploading ${#CURL_ARGS[@]} files to $URL..."
+        echo "Uploading $FILE_COUNT files to $URL..."
 
-        # Upload and capture HTTP status code and response body
-        HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/response.out \
+        HTTP_STATUS=$(curl $CURL_OPTS -w "%{http_code}" -o /tmp/response.out \
           -X POST "$URL" \
           -H "Authorization: Bearer $IDTOKEN" \
           "${CURL_ARGS[@]}")
@@ -65,8 +79,18 @@ runs:
         echo "HTTP status: $HTTP_STATUS"
 
         if [[ ! "$HTTP_STATUS" =~ ^2 ]]; then
-          echo "Upload failed with status $HTTP_STATUS"
-          echo "Response body:"
-          cat /tmp/response.out
+          ERROR_MSG="Upload failed with HTTP $HTTP_STATUS: $(cat /tmp/response.out)"
+          echo "$ERROR_MSG"
+          # Write error message to output
+          echo "upload-error=${ERROR_MSG}" >> "$GITHUB_OUTPUT"
           exit 1
         fi
+
+        echo "Upload succeeded."
+
+        echo "uploaded-count=$FILE_COUNT" >> "$GITHUB_OUTPUT"
+        echo "upload-error=" >> "$GITHUB_OUTPUT"  # Clear if successful
+
+        echo "### ✅ Static site uploaded successfully" >> "$GITHUB_STEP_SUMMARY"
+        echo "- Files uploaded: $FILE_COUNT" >> "$GITHUB_STEP_SUMMARY"
+        echo "- Target endpoint: $URL" >> "$GITHUB_STEP_SUMMARY"
