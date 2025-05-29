@@ -56,15 +56,16 @@ runs:
         URL="${{ steps.prepare.outputs.uploadApiEndpoint }}"
         IDTOKEN="${{ steps.prepare.outputs.idtoken }}"
         VERBOSE="${{ inputs.verbose }}"
+        UPLOAD_DIR="${{ inputs.site-dir }}"
 
         [[ "$VERBOSE" == "true" ]] && CURL_OPTS="-v" || CURL_OPTS="--silent"
 
         # Build curl arguments for multipart/form-data, preserving relative paths
         CURL_ARGS=()
         while IFS= read -r -d '' file; do
-          relpath="${file#${{ inputs.dir }}}"
+          relpath="${file#$UPLOAD_DIR}" # Remove the base directory from the path
           CURL_ARGS+=("-F" "files[${relpath}]=@${file}")
-        done < <(find ${{ inputs.dir }} -type f -print0)
+        done < <(find $UPLOAD_DIR -type f -print0)
 
         FILE_COUNT="${#CURL_ARGS[@]}"
         echo "Uploading $FILE_COUNT files to $URL..."
