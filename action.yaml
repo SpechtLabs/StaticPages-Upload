@@ -40,8 +40,8 @@ runs:
           url = url.replace(/\/+$/, '');
 
           // Append /upload if not already present
-          if (!url.endsWith('/upload')) {
-            url += '/upload';
+          if (!url.endsWith('/api/upload')) {
+            url += '/api/upload';
           }
 
           const idToken = await core.getIDToken();
