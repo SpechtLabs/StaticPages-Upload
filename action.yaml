@@ -80,9 +80,22 @@ runs:
 
         echo "Server responded with HTTP $HTTP_CODE"
         if [[ "$HTTP_CODE" == "200" ]]; then
-          echo "### Static site uploaded successfully" >> "$GITHUB_STEP_SUMMARY"
+          echo "### ✅ Static site uploaded successfully" >> "$GITHUB_STEP_SUMMARY"
           echo "- Files uploaded: $FILE_COUNT" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Target endpoint: $URL" >> "$GITHUB_STEP_SUMMARY"
+
+          MAIN_URL=$(jq -r '.url // empty' "$HTTP_RESPONSE")
+          if [[ -n "$MAIN_URL" ]]; then
+            echo "- Main URL: https://$MAIN_URL" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          PREVIEWS=$(jq -r '.preview_url[]? // empty' "$HTTP_RESPONSE")
+          if [[ -n "$PREVIEWS" ]]; then
+            echo "- Preview URLs:" >> "$GITHUB_STEP_SUMMARY"
+            while IFS= read -r preview; do
+              echo "  - $preview" >> "$GITHUB_STEP_SUMMARY"
+            done <<< "$PREVIEWS"
+          fi
+
           jq . "$HTTP_RESPONSE" || cat "$HTTP_RESPONSE"
         else
           echo "### ❌ Upload failed" >> "$GITHUB_STEP_SUMMARY"
