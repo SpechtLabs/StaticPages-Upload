@@ -86,7 +86,7 @@ runs:
 
           MAIN_URL=$(jq -r '.url // empty' "$HTTP_RESPONSE")
           if [[ -n "$MAIN_URL" ]]; then
-            echo "- Main URL: https://$MAIN_URL" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Main URL: $MAIN_URL" >> "$GITHUB_STEP_SUMMARY"
           fi
 
           PREVIEWS=$(jq -r '.preview_url[]? // empty' "$HTTP_RESPONSE")
