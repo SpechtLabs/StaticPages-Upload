@@ -1,0 +1,31 @@
+name: CI
+
+# Everything a pull request runs. check.yaml is a workflow of its own, which
+# release.yaml calls to gate every release and which runs on its own from the
+# Actions tab.
+on:
+  # The filter excludes rather than lists, so a new file runs CI by default.
+  # No check is required by the rulesets, which is what makes a
+  # workflow-level filter safe: a skipped required check would block the merge.
+  pull_request:
+    paths:
+      - "**"
+      - "!**.md"
+      - "!LICENSE"
+  workflow_dispatch:
+
+# The test job uploads with the workflow's OIDC token, as the action does in
+# the repositories that use it.
+permissions:
+  contents: read
+  id-token: write
+
+# A new push to a pull request supersedes its run in flight.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Check
+    uses: ./.github/workflows/check.yaml

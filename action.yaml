@@ -23,13 +23,17 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    # The inputs reach the scripts as environment variables, never spliced
+    # into the script text, so an input can't run code of its own.
     - name: Normalize URL and fetch ID token
       id: prepare
-      uses: actions/github-script@v8
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ENDPOINT: ${{ inputs.endpoint }}
       with:
         debug: false
         script: |
-          let url = '${{ inputs.endpoint }}';
+          let url = process.env.ENDPOINT;
 
           // Ensure it has a protocol
           if (!url.match(/^https?:\/\//)) {
@@ -45,6 +49,7 @@ runs:
           }
 
           const idToken = await core.getIDToken();
+          core.setSecret(idToken);
 
           core.setOutput('uploadApiEndpoint', url);
           core.setOutput('idtoken', idToken);
@@ -52,35 +57,42 @@ runs:
     - name: Upload static site artifacts
       id: upload
       shell: bash
+      env:
+        URL: ${{ steps.prepare.outputs.uploadApiEndpoint }}
+        IDTOKEN: ${{ steps.prepare.outputs.idtoken }}
+        VERBOSE: ${{ inputs.verbose }}
+        UPLOAD_DIR: ${{ inputs.site-dir }}
       run: |
-        URL="${{ steps.prepare.outputs.uploadApiEndpoint }}"
-        IDTOKEN="${{ steps.prepare.outputs.idtoken }}"
-        VERBOSE="${{ inputs.verbose }}"
-        UPLOAD_DIR="${{ inputs.site-dir }}"
+        set -uo pipefail
 
-        [[ "$VERBOSE" == "true" ]] && CURL_OPTS="-v" || CURL_OPTS="--silent"
+        CURL_OPTS=(--silent)
+        [[ "$VERBOSE" == "true" ]] && CURL_OPTS=(-v)
 
         # Build curl arguments for multipart/form-data, preserving relative paths
         CURL_ARGS=()
+        FILE_COUNT=0
         while IFS= read -r -d '' file; do
-          relpath="${file#$UPLOAD_DIR}" # Remove the base directory from the path
+          relpath="${file#"$UPLOAD_DIR"}" # Remove the base directory from the path
           CURL_ARGS+=("-F" "files[${relpath}]=@${file}")
-        done < <(find $UPLOAD_DIR -type f -print0)
+          FILE_COUNT=$((FILE_COUNT + 1))
+        done < <(find "$UPLOAD_DIR" -type f -print0)
 
-        FILE_COUNT="${#CURL_ARGS[@]}"
         echo "Uploading $FILE_COUNT files to $URL..."
 
-        # Upload and capture response
+        # Upload and capture response. curl prints 000 when it gets no
+        # response at all, which the failure branch below reports.
         HTTP_RESPONSE=$(mktemp)
-        HTTP_CODE=$(curl $CURL_OPTS \
+        HTTP_CODE=$(curl "${CURL_OPTS[@]}" \
           -X POST "$URL" \
           -H "Authorization: Bearer $IDTOKEN" \
           "${CURL_ARGS[@]}" \
           -w "%{http_code}" \
-          -o "$HTTP_RESPONSE")
+          -o "$HTTP_RESPONSE") || true
 
         echo "Server responded with HTTP $HTTP_CODE"
         if [[ "$HTTP_CODE" == "200" ]]; then
+          echo "uploaded-count=$FILE_COUNT" >> "$GITHUB_OUTPUT"
+
           echo "### ✅ Static site uploaded successfully" >> "$GITHUB_STEP_SUMMARY"
           echo "- Files uploaded: $FILE_COUNT" >> "$GITHUB_STEP_SUMMARY"
 
@@ -99,9 +111,11 @@ runs:
 
           jq . "$HTTP_RESPONSE" || cat "$HTTP_RESPONSE"
         else
-          echo "### ❌ Upload failed" >> "$GITHUB_STEP_SUMMARY"
-          echo "- HTTP code: $HTTP_CODE" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Error message: $(jq -r '.error // "unknown error"' "$HTTP_RESPONSE" 2>/dev/null || cat "$HTTP_RESPONSE")" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### ❌ Upload failed"
+            echo "- HTTP code: $HTTP_CODE"
+            echo "- Error message: $(jq -r '.error // "unknown error"' "$HTTP_RESPONSE" 2>/dev/null || cat "$HTTP_RESPONSE")"
+          } >> "$GITHUB_STEP_SUMMARY"
           cat "$HTTP_RESPONSE" >&2
           exit 1
         fi
