@@ -1,0 +1,40 @@
+repos:
+  # Generic pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-case-conflict
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: mixed-line-ending
+      - id: check-added-large-files
+        name: check for added large files
+        description: Prevents giant files from being committed
+        args: ["--maxkb=500"]
+
+  # Runs the mise-pinned actionlint (and shellcheck) rather than a copy
+  # pre-commit would build, so the hook and CI agree on the version. The
+  # action's own script goes through the action-lint task.
+  - repo: local
+    hooks:
+      - id: actionlint
+        name: actionlint
+        entry: mise exec -- actionlint
+        language: system
+        files: ^\.github/workflows/.*\.ya?ml$
+      - id: action-lint
+        name: shellcheck action.yaml
+        entry: mise run action-lint
+        language: system
+        files: ^action\.yaml$
+        pass_filenames: false
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks

@@ -1,0 +1,58 @@
+# .mise.toml — local tooling, exact pins (repo convention)
+#
+# The tasks below define how the action is checked. CI uses these tasks.
+# Renovate keeps every pin in this file current.
+
+[settings]
+# The pins below are the only source of tool versions; mise never reads them
+# from .nvmrc and friends.
+idiomatic_version_file_enable_tools = []
+
+[tools]
+# Pre-commit for Git hooks
+pre-commit = "4.6.2"
+
+# Linters
+yamllint = "1.38.0"
+actionlint = "1.7.12"
+# actionlint runs shellcheck on every `run:` script in the workflows when it's
+# on PATH, and silently skips them when it isn't. The action's own script is
+# checked by the action-lint task.
+shellcheck = "0.11.0"
+# Pulls the action's bash script out of action.yaml for shellcheck.
+yq = "4.54.1"
+
+# Runs the mock Static Pages server the CI workflow tests the action against.
+node = "24.21.0"
+
+# Runs the release-please commit message check in .github/commit-lint.
+bun = "1.4.2"
+
+# Pins GitHub Actions to commit SHAs (see the update-gha task)
+pinact = "5.0.0"
+[tasks.lint]
+description = "Lint YAML, the workflows, and the action's bash script"
+depends = ["yaml-lint", "actionlint", "action-lint"]
+
+[tasks.yaml-lint]
+description = "Lint every YAML file in the repository"
+run = "yamllint --strict ."
+
+[tasks.actionlint]
+description = "Lint the GitHub Actions workflows"
+run = "actionlint"
+
+# actionlint checks workflows, not a composite action's steps, so the upload
+# script is checked here. Its inputs arrive as environment variables, which
+# keeps the script plain bash that shellcheck can read.
+[tasks.action-lint]
+description = "Run shellcheck over the bash script in action.yaml"
+run = "yq '.runs.steps[] | select(.shell == \"bash\") | .run' action.yaml | shellcheck --shell=bash -"
+
+[tasks.check]
+description = "The definition of done: every gate CI runs that works outside GitHub Actions"
+depends = ["lint"]
+
+[tasks.update-gha]
+description = "Pin GitHub Actions to commit SHAs (Renovate keeps them current afterwards)"
+run = "pinact run"

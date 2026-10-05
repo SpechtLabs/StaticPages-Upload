@@ -66,3 +66,22 @@ jobs:
         with:
           endpoint: https://staticpages.example.com
           site-dir: public/
+```
+
+## Versions
+
+Releases follow [semantic versioning](https://semver.org/) and are cut by
+release-please from the commits on `main`. `@v1` always points at the newest
+1.x release; to pin an exact release, use its commit SHA with the version
+beside it, which Renovate and Dependabot keep current:
+
+```yaml
+- uses: SpechtLabs/StaticPages-Upload@<commit-sha> # v1.0.1
+```
+
+## Development
+
+The tools are pinned in `.mise.toml`. `mise run check` lints the YAML, the
+workflows and the action's bash script. The CI workflow also runs the action
+against `test/mock-server.mjs`, a stand-in for the Static Pages API, with a
+real OIDC token, which only GitHub Actions can issue.

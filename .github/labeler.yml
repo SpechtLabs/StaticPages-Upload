@@ -1,0 +1,42 @@
+# The action itself
+action:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "action.yaml"
+
+# The mock server and the test site the CI workflow uploads
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "test/**"
+
+# Documentation
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+
+# Build, release, and CI plumbing
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+          - ".release-please-config.json"
+          - ".release-please-manifest.json"
+          - ".mise.toml"
+          - ".pre-commit-config.yaml"
+          - ".yamllint.yaml"
+          - ".editorconfig"
+          - "renovate.json"
+
+# Add 'enhancement' to any PR whose head branch starts with `feat` or `feature`
+enhancement:
+  - head-branch:
+      - "^feat"
+      - "^feature"
+
+# Add 'bug' to any PR whose head branch starts with `fix` or `bug`
+bug:
+  - head-branch:
+      - "^fix"
+      - "^bug"

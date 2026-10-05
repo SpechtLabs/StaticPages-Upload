@@ -2,7 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    ":semanticCommits"
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests",
+    "customManagers:githubActionsVersions"
   ],
   "timezone": "Europe/Berlin",
   "dependencyDashboard": true,
@@ -16,6 +18,24 @@
   "labels": [
     "dependencies"
   ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/__tests__/**",
+    "**/__fixtures__/**"
+  ],
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "labels": [
+      "dependencies",
+      "security"
+    ]
+  },
+  "pre-commit": {
+    "enabled": true
+  },
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": [
@@ -23,23 +43,16 @@
     ],
     "automerge": true
   },
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "Track the Go toolchain version pinned in .mise.toml.",
-      "managerFilePatterns": [
-        "/(^|/)\\.mise\\.toml$/"
-      ],
-      "matchStrings": [
-        "(?:^|\\n)go\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+(?:\\.\\d+)?)\""
-      ],
-      "depNameTemplate": "go",
-      "packageNameTemplate": "go",
-      "datasourceTemplate": "golang-version",
-      "versioningTemplate": "semver"
-    }
-  ],
   "packageRules": [
+    {
+      "description": "mise is pinned as MISE_VERSION in every workflow that sets it up; move them at once, and only to a release a day old, the age mise-action waited for before the pin.",
+      "matchDepNames": [
+        "jdx/mise"
+      ],
+      "groupName": "mise",
+      "groupSlug": "mise",
+      "minimumReleaseAge": "1 day"
+    },
     {
       "description": "Automerge digest, pin, patch, and minor updates once CI passes.",
       "matchUpdateTypes": [
@@ -74,47 +87,45 @@
       "dependencyDashboardApproval": false
     },
     {
-      "description": "Do not manage npm as a separate mise tool; Node provides npm.",
+      "description": "The actions action.yaml runs are what everyone using this action runs, so their updates are fixes that cut a release; the workflows' actions stay chores. A group of their own, because a group takes one commit type.",
+      "matchManagers": [
+        "github-actions"
+      ],
       "matchFileNames": [
-        ".mise.toml"
+        "action.yaml"
+      ],
+      "groupName": "action dependencies",
+      "groupSlug": "action-dependencies",
+      "semanticCommitType": "fix"
+    },
+    {
+      "description": "Node is pinned in .mise.toml for the mock server the CI workflow tests the action against.",
+      "matchDatasources": [
+        "node-version"
       ],
       "matchDepNames": [
-        "npm"
+        "node"
+      ],
+      "groupName": "Node toolchain",
+      "groupSlug": "node-toolchain"
+    },
+    {
+      "description": "bun is pinned in .mise.toml; it runs the commit message check.",
+      "matchDepNames": [
+        "bun"
+      ],
+      "groupName": "bun",
+      "groupSlug": "bun"
+    },
+    {
+      "description": "The commit message check must parse with the release-please version the release-please action bundles (see its package-lock.json), not the newest one. Bump it by hand alongside the action.",
+      "matchFileNames": [
+        ".github/commit-lint/package.json"
+      ],
+      "matchPackageNames": [
+        "release-please"
       ],
       "enabled": false
-    },
-    {
-      "description": "Group Go module updates together.",
-      "matchManagers": [
-        "gomod"
-      ],
-      "groupName": "Go modules",
-      "groupSlug": "go-modules"
-    },
-    {
-      "description": "Update .mise.toml and go.mod Go versions together.",
-      "matchDatasources": [
-        "golang-version"
-      ],
-      "matchDepNames": [
-        "go"
-      ],
-      "groupName": "Go toolchain",
-      "groupSlug": "go-toolchain",
-      "rangeStrategy": "bump",
-      "automerge": true,
-      "automergeType": "pr",
-      "platformAutomerge": true,
-      "dependencyDashboardApproval": false
-    },
-    {
-      "description": "Group docs site dependencies together.",
-      "matchFileNames": [
-        "docs/package.json",
-        "docs/bun.lock"
-      ],
-      "groupName": "docs dependencies",
-      "groupSlug": "docs-dependencies"
     }
   ]
 }
