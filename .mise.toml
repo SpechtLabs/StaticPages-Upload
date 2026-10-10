@@ -26,7 +26,7 @@ yq = "4.54.1"
 node = "24.21.0"
 
 # Runs the release-please commit message check in .github/commit-lint.
-bun = "1.4.2"
+bun = "1.4.3"
 
 # Pins GitHub Actions to commit SHAs (see the update-gha task)
 pinact = "5.0.0"
