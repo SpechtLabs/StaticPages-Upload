@@ -20,7 +20,7 @@ actionlint = "1.7.12"
 # checked by the action-lint task.
 shellcheck = "0.11.0"
 # Pulls the action's bash script out of action.yaml for shellcheck.
-yq = "4.54.1"
+yq = "4.54.2"
 
 # Runs the mock Static Pages server the CI workflow tests the action against.
 node = "24.22.2"
